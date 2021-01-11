@@ -1,7 +1,12 @@
 #!/usr/bin/env node
-import 'source-map-support/register';
-import {App} from 'monocdk';
+import { App } from 'monocdk';
 import { DynamoStack } from '../lib/dynamoStack';
+import { StepFunctionStack } from '../lib/stepFunctionsStack';
 
 const app = new App();
-new DynamoStack(app, 'GameAgentCdkStack');
+const dynamoStack = new DynamoStack(app, 'Dynamo-Stack');
+new StepFunctionStack(
+    app,
+    'Step-Functions-Stack',
+    dynamoStack.dynamoTables,
+    )
