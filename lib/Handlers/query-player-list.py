@@ -1,6 +1,6 @@
 import boto3
 
-def lambda_handler():
+def lambda_handler(event, context):
     '''
     Function to pull player list from DDB.
     '''
@@ -13,5 +13,5 @@ def lambda_handler():
 
     return {
         "players": player_entries,
-        "all_players_checked?": False
+        "all_players_checked": False
     }

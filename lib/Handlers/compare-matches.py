@@ -2,8 +2,8 @@ def lambda_handler(event, context):
     '''
     Function to pull player matches from Riot API.
     '''
-    matches = event['match_result']['Data']
-    match_cache = event["current_player"]['match_cache']
+    matches = event["Payload"]['match_result']['Data']
+    match_cache = event["Payload"]["current_player"]['match_cache']
 
     matches_to_check = []
 
@@ -11,7 +11,8 @@ def lambda_handler(event, context):
         if match not in match_cache:
             matches_to_check.append(match)
 
-    event["current_player"]["matches_to_check"] = matches_to_check
-    event["all_matches_checked?"] = False
+    event["Payload"]["current_player"]["match_cache"] = matches
+    event["Payload"]["current_player"]["matches_to_check"] = matches_to_check
+    event["Payload"]["all_matches_checked"] = False
 
-    return event
+    return event["Payload"]

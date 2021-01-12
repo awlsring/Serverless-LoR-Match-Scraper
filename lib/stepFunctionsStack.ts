@@ -1,18 +1,26 @@
 import {Stack, StackProps, Construct, Duration} from 'monocdk';
 import {StateMachine, Choice, Condition, Pass, Wait, WaitTime} from 'monocdk/aws-stepfunctions'
 import {LambdaInvoke} from 'monocdk/aws-stepfunctions-tasks'
-import {Function, Runtime, Code, Tracing} from 'monocdk/aws-lambda'
+import {Function, Runtime, Code, Tracing, LayerVersion} from 'monocdk/aws-lambda'
 import {Role, ServicePrincipal, PolicyStatement} from 'monocdk/aws-iam'
 
 export class StepFunctionStack extends Stack {
   constructor(scope: Construct, id: string, tables: Map<string, string>, props?: StackProps) {
     super(scope, id, props);
     
+    // Requests Layer
+    const requestsLayer = new LayerVersion(this, "Requests-Layer", {
+      code: Code.fromAsset('lib/handlers/lib/requests/requests.zip'),
+      compatibleRuntimes: [ Runtime.PYTHON_3_8 ] ,
+      description: "Lambda Layer for Requests",
+      layerVersionName: "LoR-Requests"
+    })
+
     // Lambda Functions for Step Functions
     const queryPlayersListLambda = new Function(this, 'Query-Player-List-Function', {
       runtime: Runtime.PYTHON_3_8,
       handler: 'query-player-list.lambda_handler',
-      code: Code.fromAsset('Handlers'),
+      code: Code.fromAsset('lib/handlers'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -31,13 +39,14 @@ export class StepFunctionStack extends Stack {
 
     const getPlayerMatchesLambda = new Function(this, 'Get-Player-Matches-Function', {
       runtime: Runtime.PYTHON_3_8,
+      layers: [ requestsLayer ],
       handler: 'get-player-matches.lambda_handler',
-      code: Code.fromAsset('Handlers'),
+      code: Code.fromAsset('lib/handlers'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
-      functionName: 'LoR-Query-Player-List',
-      role: new Role(this, 'LoR-Get-Player-Matches', {
+      functionName: 'LoR-Player-Matches',
+      role: new Role(this, 'LoR-Player-Matches', {
         assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
         roleName: 'LoR-Get-Player-Matches-Role'
       })
@@ -45,8 +54,8 @@ export class StepFunctionStack extends Stack {
 
     const compareMatchesLambda = new Function(this, 'Compare-Matches-Function', {
       runtime: Runtime.PYTHON_3_8,
-      handler: 'compare-match.lambda_handler',
-      code: Code.fromAsset('Handlers'),
+      handler: 'compare-matches.lambda_handler',
+      code: Code.fromAsset('lib/handlers'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -59,8 +68,9 @@ export class StepFunctionStack extends Stack {
 
     const getMatchLambda = new Function(this, 'Get-Match-Function', {
       runtime: Runtime.PYTHON_3_8,
+      layers: [ requestsLayer ],
       handler: 'get-match.lambda_handler',
-      code: Code.fromAsset('Handlers'),
+      code: Code.fromAsset('lib/handlers'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -71,10 +81,24 @@ export class StepFunctionStack extends Stack {
       })
     })
 
+    const failMatchLambda = new Function(this, 'Fail-Match-Function', {
+      runtime: Runtime.PYTHON_3_8,
+      handler: 'fail-match.lambda_handler',
+      code: Code.fromAsset('lib/handlers'),
+      memorySize: 128,
+      tracing: Tracing.ACTIVE,
+      timeout: Duration.seconds(5),
+      functionName: 'LoR-Fail-Match',
+      role: new Role(this, 'LoR-Fail-Match', {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        roleName: 'LoR-Fail-Match'
+      })
+    })
+
     const writeMatchDataLambda = new Function(this, 'Write-Match-Data-Function', {
       runtime: Runtime.PYTHON_3_8,
       handler: 'write-match-data.lambda_handler',
-      code: Code.fromAsset('Handlers'),
+      code: Code.fromAsset('lib/handlers'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -91,91 +115,103 @@ export class StepFunctionStack extends Stack {
       actions: [ 'dynamodb:PutItem' ]
     }))
 
+    const writePlayerDataLambda = new Function(this, 'Write-Player-Data-Function', {
+      runtime: Runtime.PYTHON_3_8,
+      handler: 'write-player-data.lambda_handler',
+      code: Code.fromAsset('lib/handlers'),
+      memorySize: 128,
+      tracing: Tracing.ACTIVE,
+      timeout: Duration.seconds(5),
+      functionName: 'LoR-Write-Player-Data',
+      role: new Role(this, 'LoR-Write-Player-Data', {
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        roleName: 'LoR-Write-Player-Data-Role'
+      })
+    })
+
+    // Pass dynamo arn to this section
+    writeMatchDataLambda.addToRolePolicy(new PolicyStatement( {
+      resources: [ <string>tables.get('Players') ],
+      actions: [ 'dynamodb:UpdateItem' ]
+    }))
 
     // Step Definitions 
-
     const queryPlayerListStep = new LambdaInvoke(this, 'Query-Player-List-Step', {
       lambdaFunction: queryPlayersListLambda,
-      outputPath: "$.event",
     });
 
-    const forPlayerInListStep = new Choice(this, 'For-Player-In-List', {
-      inputPath: "$.event",
-      outputPath: "$.event",
-    })
+    const forPlayerInListStep = new Choice(this, 'For-Player-In-List')
 
     const finishPlayerLoop = new Pass(this, 'Finish-Player-Loop')
 
     const getPlayerMatchesStep = new LambdaInvoke(this, 'Get-Player-Match-Step', {
       lambdaFunction: getPlayerMatchesLambda,
-      inputPath: "$.event",
-      outputPath: "$.event",
     });
     
-    const checkForRiotBackoffMatchList = new Choice(this, 'Check-For-Riot-Backoff-Step', {
-      inputPath: "$.event",
-      outputPath: "$.event",
-    })
+    const checkForRiotBackoffMatchList = new Choice(this, 'Check-For-Riot-Backoff-Match-List-Step')
 
-    const waitForBackoffDurationMatchList = new Wait(this, 'Wait-For-Backoff-Duration', {
-      time: WaitTime.timestampPath('$.event.headers.Retry-After ')
+    const waitForBackoffDurationMatchList = new Wait(this, 'Wait-For-Backoff-Duration-Match-List-Step', {
+      time: WaitTime.timestampPath('$.headers.Retry-After ')
     })
 
     const compareMatchesStep = new LambdaInvoke(this, 'Compare-Match-Step', {
       lambdaFunction: compareMatchesLambda,
-      inputPath: "$.event",
-      outputPath: "$.event",
     });
 
-    const forMatchNotInCache = new Choice(this, 'For-Match-Not-In-Cache', {
-      inputPath: "$.event",
-      outputPath: "$.event",
-    })
+    const forMatchNotInCache = new Choice(this, 'For-Match-Not-In-Cache')
 
     const getMatchStep = new LambdaInvoke(this, 'Get-Match-Step', {
       lambdaFunction: getMatchLambda,
-      inputPath: "$.event",
-      outputPath: "$.event",
     });
 
-    const checkForRiotBackoffMatch = new Choice(this, 'Check-For-Riot-Backoff-Step', {
-      inputPath: "$.event",
-      outputPath: "$.event",
-    })
+    const failMatchStep = new LambdaInvoke(this, 'Fail-Match-Step', {
+      lambdaFunction: failMatchLambda,
+    });
 
-    const waitForBackoffDurationMatch = new Wait(this, 'Wait-For-Backoff-Duration', {
-      time: WaitTime.timestampPath('$.event.headers.Retry-After ')
+    const checkForRiotBackoffMatch = new Choice(this, 'Check-For-Riot-Backoff-Match-Step')
+
+    const waitForBackoffDurationMatch = new Wait(this, 'Wait-For-Backoff-Duration-Match-Step', {
+      time: WaitTime.timestampPath('$.headers.Retry-After ')
     })
     
     const writeMatchDataStep = new LambdaInvoke(this, 'Write-Match-Data-Step', {
       lambdaFunction: writeMatchDataLambda,
-      inputPath: "$.event",
-      outputPath: "$.event",
+    });
+
+    const writeMatchPlayerStep = new LambdaInvoke(this, 'Write-Player-Data-Step', {
+      lambdaFunction: writePlayerDataLambda,
     });
     
     // Step Order Definition
     const stepDefinition = queryPlayerListStep
       .next(forPlayerInListStep)
-        forPlayerInListStep.when(Condition.booleanEquals('$.event.all_players_checked?', false), getPlayerMatchesStep)
-        forPlayerInListStep.when(Condition.booleanEquals('$.event.all_players_checked?', true), finishPlayerLoop)
+        forPlayerInListStep.when(Condition.booleanEquals('$.Payload.all_players_checked', false), getPlayerMatchesStep)
+        forPlayerInListStep.when(Condition.booleanEquals('$.Payload.all_players_checked', true), finishPlayerLoop)
 
       getPlayerMatchesStep.next(checkForRiotBackoffMatchList)
-        checkForRiotBackoffMatchList.when(Condition.numberEquals('$.event.status_code', 200), compareMatchesStep)
-        checkForRiotBackoffMatchList.when(Condition.numberEquals('$.event.status_code', 429), waitForBackoffDurationMatchList)
-
+        checkForRiotBackoffMatchList.when(Condition.numberEquals('$.Payload.match_result.status_code', 200), compareMatchesStep)
+        checkForRiotBackoffMatchList.when(Condition.numberEquals('$.Payload.match_result.status_code', 429), waitForBackoffDurationMatchList)
+        checkForRiotBackoffMatchList.when(Condition.numberGreaterThanEquals('$.Payload.match_result.status_code', 500), getPlayerMatchesStep)
+        
       waitForBackoffDurationMatchList.next(getPlayerMatchesStep)
-
+        
       compareMatchesStep.next(forMatchNotInCache)
-        forMatchNotInCache.when(Condition.booleanEquals('$.event.all_matches_checked', true), forPlayerInListStep)
-        forMatchNotInCache.when(Condition.booleanEquals('$.event.all_matches_checked', false), getMatchStep)
-
+        forMatchNotInCache.when(Condition.booleanEquals('$.Payload.all_matches_checked', true), writeMatchPlayerStep)
+        forMatchNotInCache.when(Condition.booleanEquals('$.Payload.all_matches_checked', false), getMatchStep)
+        
       getMatchStep.next(checkForRiotBackoffMatch)
-        checkForRiotBackoffMatch.when(Condition.numberEquals('$.event.status_code', 200), writeMatchDataStep)
-        checkForRiotBackoffMatch.when(Condition.numberEquals('$.event.status_code', 429), waitForBackoffDurationMatch)
+        checkForRiotBackoffMatch.when(Condition.numberEquals('$.Payload.current_player.current_match.status_code', 200), writeMatchDataStep)
+        checkForRiotBackoffMatch.when(Condition.numberEquals('$.Payload.current_player.current_match.status_code', 429), waitForBackoffDurationMatch)
+        checkForRiotBackoffMatchList.when(Condition.numberEquals('$.Payload.match_result.status_code', 404), failMatchStep)
+        checkForRiotBackoffMatch.when(Condition.numberGreaterThanEquals('$.Payload.match_result.status_code', 500), getMatchStep)
+
+      failMatchStep.next(forMatchNotInCache)
 
       waitForBackoffDurationMatch.next(getMatchStep)
 
       writeMatchDataStep.next(forMatchNotInCache)
+
+      writeMatchPlayerStep.next(forPlayerInListStep)
 
     new StateMachine(this, 'LoR-State-Machine', {
       definition: stepDefinition,

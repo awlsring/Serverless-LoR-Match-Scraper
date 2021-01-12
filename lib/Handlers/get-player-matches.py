@@ -1,4 +1,5 @@
 import requests
+import json
 
 def lambda_handler(event, context):
     '''
@@ -6,9 +7,9 @@ def lambda_handler(event, context):
     '''
     
     # API Key in header 
-    header = {"X-Riot-Token": "RGAPI-6d962893-7cf1-411a-9734-2deb4189adbf" }
+    header = {"X-Riot-Token": "RGAPI-988b244e-3499-471a-93bd-823dc777102b" }
     
-    player_to_process = event["players"][0]
+    player_to_process = event["Payload"]["players"][0]
 
     region = player_to_process['region']
     player_uuid = player_to_process['player_uuid']
@@ -20,27 +21,10 @@ def lambda_handler(event, context):
     match_result = {}
 
     match_result['status_code'] = matches.status_code
-    match_result['headers'] = matches.headers
+    match_result['headers'] = json.dumps(dict(matches.headers))
     match_result['Data'] = matches.json()
 
-    event["match_result"] = match_result
-    event["current_player"] = player_to_process
+    event["Payload"]["match_result"] = match_result
+    event["Payload"]["current_player"] = player_to_process
 
-    return event
-
-    # if matches.status_code == 200:
-    #     # match_list = matches.json()
-
-    #     # matches_to_check = []
-
-    #     # for match in match_list:
-    #     #     if match not in match_cache:
-    #     #         matches_to_check.append(match)
-
-    #     # return matches_to_check
-    #     return matches
-
-    # elif matches.status_code == 429:
-    #     return matches.headers
-    # else:
-    #     return "oof"
+    return event["Payload"]
