@@ -3,6 +3,8 @@ import {StateMachine, Choice, Condition, Pass, Wait, WaitTime} from 'monocdk/aws
 import {LambdaInvoke} from 'monocdk/aws-stepfunctions-tasks'
 import {Function, Runtime, Code, Tracing, LayerVersion} from 'monocdk/aws-lambda'
 import {Role, ServicePrincipal, PolicyStatement} from 'monocdk/aws-iam'
+import {Rule, Schedule} from 'monocdk/aws-events'
+import {SfnStateMachine} from 'monocdk/aws-events-targets'
 
 export class StepFunctionStack extends Stack {
   constructor(scope: Construct, id: string, tables: Map<string, string>, props?: StackProps) {
@@ -130,7 +132,7 @@ export class StepFunctionStack extends Stack {
     })
 
     // Pass dynamo arn to this section
-    writeMatchDataLambda.addToRolePolicy(new PolicyStatement( {
+    writePlayerDataLambda.addToRolePolicy(new PolicyStatement( {
       resources: [ <string>tables.get('Players') ],
       actions: [ 'dynamodb:UpdateItem' ]
     }))
@@ -151,7 +153,7 @@ export class StepFunctionStack extends Stack {
     const checkForRiotBackoffMatchList = new Choice(this, 'Check-For-Riot-Backoff-Match-List-Step')
 
     const waitForBackoffDurationMatchList = new Wait(this, 'Wait-For-Backoff-Duration-Match-List-Step', {
-      time: WaitTime.timestampPath('$.headers.Retry-After ')
+      time: WaitTime.timestampPath('$.Payload.match_result.retry_after')
     })
 
     const compareMatchesStep = new LambdaInvoke(this, 'Compare-Match-Step', {
@@ -171,7 +173,7 @@ export class StepFunctionStack extends Stack {
     const checkForRiotBackoffMatch = new Choice(this, 'Check-For-Riot-Backoff-Match-Step')
 
     const waitForBackoffDurationMatch = new Wait(this, 'Wait-For-Backoff-Duration-Match-Step', {
-      time: WaitTime.timestampPath('$.headers.Retry-After ')
+      time: WaitTime.timestampPath('$.Payload.current_player.current_match.retry_after')
     })
     
     const writeMatchDataStep = new LambdaInvoke(this, 'Write-Match-Data-Step', {
@@ -202,8 +204,8 @@ export class StepFunctionStack extends Stack {
       getMatchStep.next(checkForRiotBackoffMatch)
         checkForRiotBackoffMatch.when(Condition.numberEquals('$.Payload.current_player.current_match.status_code', 200), writeMatchDataStep)
         checkForRiotBackoffMatch.when(Condition.numberEquals('$.Payload.current_player.current_match.status_code', 429), waitForBackoffDurationMatch)
-        checkForRiotBackoffMatchList.when(Condition.numberEquals('$.Payload.match_result.status_code', 404), failMatchStep)
-        checkForRiotBackoffMatch.when(Condition.numberGreaterThanEquals('$.Payload.match_result.status_code', 500), getMatchStep)
+        checkForRiotBackoffMatch.when(Condition.numberEquals('$.Payload.current_player.current_match.status_code', 404), failMatchStep)
+        checkForRiotBackoffMatch.when(Condition.numberGreaterThanEquals('$.Payload.current_player.current_match.status_code', 500), getMatchStep)
 
       failMatchStep.next(forMatchNotInCache)
 
@@ -213,9 +215,17 @@ export class StepFunctionStack extends Stack {
 
       writeMatchPlayerStep.next(forPlayerInListStep)
 
-    new StateMachine(this, 'LoR-State-Machine', {
+    const matchProcessor = new StateMachine(this, 'LoR-State-Machine', {
       definition: stepDefinition,
       stateMachineName: "LoR-Match-Processor"
+    })
+
+    const scheduleStateMachine = new SfnStateMachine(matchProcessor)
+
+    new Rule(this, 'LoR-Schedule-State-Machine', {
+      schedule: Schedule.cron({ minute: '30', hour: '0'}),
+      targets: [scheduleStateMachine],
+      ruleName: "LoR-Match-Processor-Scheduler",
     })
 
   }

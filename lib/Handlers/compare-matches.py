@@ -13,6 +13,10 @@ def lambda_handler(event, context):
 
     event["Payload"]["current_player"]["match_cache"] = matches
     event["Payload"]["current_player"]["matches_to_check"] = matches_to_check
-    event["Payload"]["all_matches_checked"] = False
+
+    if len(matches_to_check) == 0:
+        event["Payload"]["all_matches_checked"] = True
+    else:
+        event["Payload"]["all_matches_checked"] = False
 
     return event["Payload"]

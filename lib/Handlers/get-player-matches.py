@@ -21,7 +21,8 @@ def lambda_handler(event, context):
     match_result = {}
 
     match_result['status_code'] = matches.status_code
-    match_result['headers'] = json.dumps(dict(matches.headers))
+    if matches.status_code == 429:
+        match_result['retry_after'] = matches.headers['Retry-After']
     match_result['Data'] = matches.json()
 
     event["Payload"]["match_result"] = match_result

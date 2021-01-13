@@ -9,27 +9,25 @@ def lambda_handler(event, context):
 
     current_player = event["Payload"]['current_player']
 
-    match_table.put_item(
-        Item = {
-           'PUUID': {
-               'S': current_player['player_uuid']
-           },
-           'region': {
-               'S': current_player['region']
-           },
-           'wins': {
-               'N': current_player['wins']
-           },
-           'losses': {
-               'N': current_player['losses']
-           },
-           'match_cache': {
-               'L': current_player['match_cache']
-           }
-        }
+    match_table.update_item(
+        Key = {
+            'player_uuid': current_player['player_uuid'],
+        },
+        UpdateExpression='SET losses=:l, wins=:w, match_cache=:m',
+        ExpressionAttributeValues={
+            ':l': current_player['losses'],
+            ':w': current_player['wins'],
+            ':m': current_player['match_cache'],
+        },
     )
 
-    event['Payload']['players'].remove(event['Payload']['current_player'])
+    for player in event['Payload']['players']:
+        if player["player_uuid"] == current_player["player_uuid"]:
+            event['Payload']['players'].remove(player)
+
     event['Payload'].pop('current_player', None)
+
+    if len(event['Payload']['players']) == 0:
+        event['Payload']["all_players_checked"] = True
 
     return event["Payload"]
