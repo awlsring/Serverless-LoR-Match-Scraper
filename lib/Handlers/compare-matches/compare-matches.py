@@ -1,6 +1,6 @@
 def lambda_handler(event, context):
     '''
-    Function to pull player matches from Riot API.
+    Compare match_cache of player and current match list to see which matches keed to be processed.
     '''
     matches = event["Payload"]['match_result']['Data']
     match_cache = event["Payload"]["current_player"]['match_cache']

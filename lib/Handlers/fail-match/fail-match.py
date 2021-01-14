@@ -1,6 +1,6 @@
 def lambda_handler(event, context):
     '''
-    Function to pull player list from DDB.
+    If a match comes up as 404, remove it from list and carry on.
     '''
     current_player = event["Payload"]['current_player']
     match_id = event["Payload"]['current_player']['current_match']['match_id']

@@ -2,7 +2,7 @@ import boto3
 
 def lambda_handler(event, context):
     '''
-    Function to pull player list from DDB.
+    Update player entry in DynamoDB with new wins, losses, and match_cache.
     '''
     dynamo = boto3.resource('dynamodb')
     match_table = dynamo.Table('LoR-Player-Table')

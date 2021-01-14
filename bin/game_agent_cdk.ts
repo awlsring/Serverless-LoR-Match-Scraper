@@ -9,4 +9,4 @@ new StepFunctionStack(
     app,
     'Step-Functions-Stack',
     dynamoStack.dynamoTables,
-    )
+)

@@ -10,7 +10,7 @@ export class StepFunctionStack extends Stack {
   constructor(scope: Construct, id: string, tables: Map<string, string>, props?: StackProps) {
     super(scope, id, props);
     
-    // Requests Layer
+    // Lambda Layers Layer
     const requestsLayer = new LayerVersion(this, "Requests-Layer", {
       code: Code.fromAsset('lib/handlers/lib/requests/requests.zip'),
       compatibleRuntimes: [ Runtime.PYTHON_3_8 ] ,
@@ -18,11 +18,18 @@ export class StepFunctionStack extends Stack {
       layerVersionName: "LoR-Requests"
     })
 
+    const lorDeckCodesLayer = new LayerVersion(this, "LoR-Deck-Codes-Layer", {
+      code: Code.fromAsset('lib/handlers/lib/lor-deckcodes/lor-deckcodes.zip'),
+      compatibleRuntimes: [ Runtime.PYTHON_3_8 ] ,
+      description: "Lambda Layer for LoR Deck Codes",
+      layerVersionName: "LoR-Deck-Codes"
+    })
+
     // Lambda Functions for Step Functions
     const queryPlayersListLambda = new Function(this, 'Query-Player-List-Function', {
       runtime: Runtime.PYTHON_3_8,
       handler: 'query-player-list.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/query-player-list'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -33,7 +40,6 @@ export class StepFunctionStack extends Stack {
       })
     })
 
-    // Pass dynamo arn to this section
     queryPlayersListLambda.addToRolePolicy(new PolicyStatement( {
       resources: [ <string>tables.get('Players') ],
       actions: [ 'dynamodb:Scan' ]
@@ -43,7 +49,7 @@ export class StepFunctionStack extends Stack {
       runtime: Runtime.PYTHON_3_8,
       layers: [ requestsLayer ],
       handler: 'get-player-matches.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/get-player-matches'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -54,10 +60,15 @@ export class StepFunctionStack extends Stack {
       })
     })
 
+    getPlayerMatchesLambda.addToRolePolicy(new PolicyStatement( {
+      resources: [ "arn:aws:secretsmanager:us-west-2:742762521158:secret:Riot-API-Key-k2axBv" ],
+      actions: [ 'secretsmanager:DescribeSecret', 'secretsmanager:GetSecretValue' ]
+    }))
+
     const compareMatchesLambda = new Function(this, 'Compare-Matches-Function', {
       runtime: Runtime.PYTHON_3_8,
       handler: 'compare-matches.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/compare-matches'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -72,7 +83,7 @@ export class StepFunctionStack extends Stack {
       runtime: Runtime.PYTHON_3_8,
       layers: [ requestsLayer ],
       handler: 'get-match.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/get-match'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -83,10 +94,15 @@ export class StepFunctionStack extends Stack {
       })
     })
 
+    getMatchLambda.addToRolePolicy(new PolicyStatement( {
+      resources: [ "arn:aws:secretsmanager:us-west-2:742762521158:secret:Riot-API-Key-k2axBv" ],
+      actions: [ 'secretsmanager:DescribeSecret', 'secretsmanager:GetSecretValue' ]
+    }))
+
     const failMatchLambda = new Function(this, 'Fail-Match-Function', {
       runtime: Runtime.PYTHON_3_8,
       handler: 'fail-match.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/fail-match'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -99,8 +115,9 @@ export class StepFunctionStack extends Stack {
 
     const writeMatchDataLambda = new Function(this, 'Write-Match-Data-Function', {
       runtime: Runtime.PYTHON_3_8,
+      layers: [ lorDeckCodesLayer ],
       handler: 'write-match-data.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/write-match-data'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -111,7 +128,6 @@ export class StepFunctionStack extends Stack {
       })
     })
 
-    // Pass dynamo arn to this section
     writeMatchDataLambda.addToRolePolicy(new PolicyStatement( {
       resources: [ <string>tables.get('Matches') ],
       actions: [ 'dynamodb:PutItem' ]
@@ -120,7 +136,7 @@ export class StepFunctionStack extends Stack {
     const writePlayerDataLambda = new Function(this, 'Write-Player-Data-Function', {
       runtime: Runtime.PYTHON_3_8,
       handler: 'write-player-data.lambda_handler',
-      code: Code.fromAsset('lib/handlers'),
+      code: Code.fromAsset('lib/handlers/write-player-data'),
       memorySize: 128,
       tracing: Tracing.ACTIVE,
       timeout: Duration.seconds(5),
@@ -223,7 +239,7 @@ export class StepFunctionStack extends Stack {
     const scheduleStateMachine = new SfnStateMachine(matchProcessor)
 
     new Rule(this, 'LoR-Schedule-State-Machine', {
-      schedule: Schedule.cron({ minute: '30', hour: '0'}),
+      schedule: Schedule.rate(Duration.minutes(30)),
       targets: [scheduleStateMachine],
       ruleName: "LoR-Match-Processor-Scheduler",
     })
