@@ -7,23 +7,8 @@ import {Rule, Schedule} from 'monocdk/aws-events'
 import {SfnStateMachine} from 'monocdk/aws-events-targets'
 
 export class StepFunctionStack extends Stack {
-  constructor(scope: Construct, id: string, tables: Map<string, string>, props?: StackProps) {
+  constructor(scope: Construct, id: string, tables: Map<string, string>, layers: Map<string, LayerVersion>, props?: StackProps) {
     super(scope, id, props);
-    
-    // Lambda Layers Layer
-    const requestsLayer = new LayerVersion(this, "Requests-Layer", {
-      code: Code.fromAsset('lib/handlers/lib/requests/requests.zip'),
-      compatibleRuntimes: [ Runtime.PYTHON_3_8 ] ,
-      description: "Lambda Layer for Requests",
-      layerVersionName: "LoR-Requests"
-    })
-
-    const lorDeckCodesLayer = new LayerVersion(this, "LoR-Deck-Codes-Layer", {
-      code: Code.fromAsset('lib/handlers/lib/lor-deckcodes/lor-deckcodes.zip'),
-      compatibleRuntimes: [ Runtime.PYTHON_3_8 ] ,
-      description: "Lambda Layer for LoR Deck Codes",
-      layerVersionName: "LoR-Deck-Codes"
-    })
 
     // Lambda Functions for Step Functions
     const queryPlayersListLambda = new Function(this, 'Query-Player-List-Function', {
@@ -47,7 +32,7 @@ export class StepFunctionStack extends Stack {
 
     const getPlayerMatchesLambda = new Function(this, 'Get-Player-Matches-Function', {
       runtime: Runtime.PYTHON_3_8,
-      layers: [ requestsLayer ],
+      layers: [ <LayerVersion>layers.get('requests') ],
       handler: 'get-player-matches.lambda_handler',
       code: Code.fromAsset('lib/handlers/get-player-matches'),
       memorySize: 128,
@@ -81,7 +66,7 @@ export class StepFunctionStack extends Stack {
 
     const getMatchLambda = new Function(this, 'Get-Match-Function', {
       runtime: Runtime.PYTHON_3_8,
-      layers: [ requestsLayer ],
+      layers: [ <LayerVersion>layers.get('requests') ],
       handler: 'get-match.lambda_handler',
       code: Code.fromAsset('lib/handlers/get-match'),
       memorySize: 128,
@@ -115,7 +100,7 @@ export class StepFunctionStack extends Stack {
 
     const writeMatchDataLambda = new Function(this, 'Write-Match-Data-Function', {
       runtime: Runtime.PYTHON_3_8,
-      layers: [ lorDeckCodesLayer ],
+      layers: [ <LayerVersion>layers.get('lor-deckcodes') ],
       handler: 'write-match-data.lambda_handler',
       code: Code.fromAsset('lib/handlers/write-match-data'),
       memorySize: 128,
