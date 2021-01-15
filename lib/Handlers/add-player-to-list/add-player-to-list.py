@@ -80,20 +80,23 @@ def lambda_handler(event, context):
         dynamo = boto3.resource('dynamodb')
         player_table = dynamo.Table('LoR-Player-Table')
 
-        dynamo_response = player_table.put_item(
-            Item = {
-            'player_uuid': player_uuid,
-            'region': region,
-            'match_cache': [],
-            'wins': 0,
-            'losses': 0,
-            'player_name': player_name,
-            'player_tag': player_tag,
-            },
-            ConditionExpression = 'attribute_not_exists(player_uuid)'
-        )
-
-        return "Player found and added to the database."
+        try:
+            player_table.put_item(
+                Item = {
+                'player_uuid': player_uuid,
+                'region': region,
+                'match_cache': [],
+                'wins': 0,
+                'losses': 0,
+                'player_name': player_name,
+                'player_tag': player_tag,
+                },
+                ConditionExpression = 'attribute_not_exists(player_uuid)'
+            )
+        except ClientError:
+            return "Player already in database"
+        else:
+            return "Player found and added to the database."
 
     elif query_player.status_code == 404:
         return "Player not found"

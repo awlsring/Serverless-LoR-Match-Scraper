@@ -2,6 +2,7 @@ from lor_deckcodes import LoRDeck, CardCodeAndCount
 import boto3
 import time
 import json
+from botocore.exceptions import ClientError
 
 def lambda_handler(event, context):
     '''
@@ -53,27 +54,29 @@ def lambda_handler(event, context):
             else:
                 loser = entry['puuid']
 
-        # Make player1 always the starting player
-        match_table.put_item(
-            Item = {
-            'match_id': match_id,
-            'date': match_date,
-            'mode': match_mode,
-            'type': match_type,
-            'turn_count': match_turns,
-            'player1_uuid': player1,
-            'player2_uuid': player2,
-            'player1_deck': player1_deck,
-            'player2_deck': player2_deck,
-            'player1_factions': player1_factions,
-            'player2_factions': player2_factions,
-            'player1_champions': player1_champions,
-            'player2_champions': player2_champions,
-            'winner': winner,
-            'loser': loser
-            },
-            ConditionExpression = 'attribute_not_exists(MatchID)'
-        )
+        try:
+            match_table.put_item(
+                Item = {
+                'match_id': match_id,
+                'date': match_date,
+                'mode': match_mode,
+                'type': match_type,
+                'turn_count': match_turns,
+                'player1_uuid': player1,
+                'player2_uuid': player2,
+                'player1_deck': player1_deck,
+                'player2_deck': player2_deck,
+                'player1_factions': player1_factions,
+                'player2_factions': player2_factions,
+                'player1_champions': player1_champions,
+                'player2_champions': player2_champions,
+                'winner': winner,
+                'loser': loser
+                },
+                ConditionExpression = 'attribute_not_exists(match_id)'
+            )
+        except ClientError:
+            pass
     
         if winner == current_player['player_uuid']:
             current_player['wins'] = current_player['wins'] + 1
