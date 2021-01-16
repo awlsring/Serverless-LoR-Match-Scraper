@@ -37,10 +37,10 @@ export class ResourcesStack extends Stack {
         websiteErrorDocument: "index.html",
     })
 
-  //   const deployment = new BucketDeployment(this, "deployStaticWebsite", {
-  //     sources: [Source.asset("front-end")],
-  //     destinationBucket: frontEndBucket
-  //  });
+    const deployment = new BucketDeployment(this, "deployStaticWebsite", {
+      sources: [Source.asset("front-end-build")],
+      destinationBucket: frontEndBucket
+   });
 
   }
 }

@@ -47,9 +47,20 @@ export class ApiGatewayStack extends Stack {
             },
             integrationResponses: [{
                 statusCode: '200',
+                responseParameters: {
+                    "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                    'method.response.header.Access-Control-Allow-Methods': "'OPTIONS,GET'",
+                    "method.response.header.Access-Control-Allow-Origin": "'*'"
+                  },
             }]}), {
             methodResponses: [{ 
                 statusCode: '200',
+                responseParameters: {
+                    'method.response.header.Access-Control-Allow-Headers': true,
+                    'method.response.header.Access-Control-Allow-Methods': true,
+                    'method.response.header.Access-Control-Allow-Credentials': true,
+                    'method.response.header.Access-Control-Allow-Origin': true,
+                },
             }]
         })
 
