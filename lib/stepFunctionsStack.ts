@@ -224,7 +224,7 @@ export class StepFunctionStack extends Stack {
     const scheduleStateMachine = new SfnStateMachine(matchProcessor)
 
     new Rule(this, 'LoR-Schedule-State-Machine', {
-      schedule: Schedule.rate(Duration.minutes(30)),
+      schedule: Schedule.rate(Duration.hours(1)),
       targets: [scheduleStateMachine],
       ruleName: "LoR-Match-Processor-Scheduler",
     })

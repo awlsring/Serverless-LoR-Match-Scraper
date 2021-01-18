@@ -2,6 +2,8 @@
 
 This project contains infrastructure code to create a serverless Legends of Runeterra match scraper on AWS using CDK.
 
+[There is an accompanying React package that can be found here](https://github.com/Awlsring/LoR-Match-Scraper-Front-End)
+
 Currently this code base creates the following resources when deployed:
 
 ### State Machine:
@@ -17,7 +19,7 @@ This state machine is the main "brain" of this project. This state machine conta
 ![alt text](https://lor-match-scraper-bucket.s3-us-west-2.amazonaws.com/LoRServerlessMatchScraperDiagram.png)
 
 ### Lambda Functions:
-7 different Lambda functions are used to perform the logic in the state machine. These Lambdas are written in Python3.8 and use a few custom layers to achieve their functionality ([requests](https://requests.readthedocs.io/en/master/) and [lor-deckcodes](https://github.com/Rafalonso/LoRDeckCodesPython))
+9 different Lambda functions are used to perform the logic in the state machine. These Lambdas are written in Python3.8 and use a few custom layers to achieve their functionality ([requests](https://requests.readthedocs.io/en/master/) and [lor-deckcodes](https://github.com/Rafalonso/LoRDeckCodesPython))
 
 ### EventBridge Rule:
 An EventBridge Rule is created to schedule execution of the state machine. Currently in this project it is set to execute every 30 minutes. 
@@ -46,6 +48,9 @@ Two DynamoDB Tables are used, LoR-Player-Table and LoR-Match-Table.
     * player2_champions (SS): Champions in player 2's deck
     * winner (S): Uuid of winning player.
     * loser (S): Uuid of losing player.
+
+### S3 Bucket & Bucket Deployment
+An S3 bucket is used to host the wesbsite. The build for the react projet is targeted by the bucket deployment is sent to the bucket eveytime `cdk deploy` targotting the resource stack is run. [Te webpage this creates can be accessed here.](https://lor-match-tracker-react-bucket.s3-us-west-2.amazonaws.com/index.html)
 
 #### CDK Commands
 *  `npm run build` compile typescript to js

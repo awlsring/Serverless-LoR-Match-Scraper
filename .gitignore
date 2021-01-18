@@ -1,8 +1,13 @@
 *.js
 !jest.config.js
 *.d.ts
+.gitignore
+.npmignore
+package-lock.json
+
+
 node_modules
-front-end-build
+build
 
 # CDK asset staging directory
 .cdk.staging

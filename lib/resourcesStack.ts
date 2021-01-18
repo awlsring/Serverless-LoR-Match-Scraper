@@ -38,7 +38,7 @@ export class ResourcesStack extends Stack {
     })
 
     const deployment = new BucketDeployment(this, "deployStaticWebsite", {
-      sources: [Source.asset("front-end-build")],
+      sources: [Source.asset("build")],
       destinationBucket: frontEndBucket
    });
 
