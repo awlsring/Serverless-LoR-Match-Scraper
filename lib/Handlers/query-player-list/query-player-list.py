@@ -5,7 +5,7 @@ def lambda_handler(event, context):
     Function to pull player list from DDB.
     '''
     dynamo = boto3.resource('dynamodb')
-    player_list_table = dynamo.Table('LoR-Player-Table')
+    player_list_table = dynamo.Table('LoR-Player-Info-Table')
 
     scan_results = player_list_table.scan()
 
@@ -13,5 +13,7 @@ def lambda_handler(event, context):
 
     return {
         "players": player_entries,
-        "all_players_checked": False
+        "all_players_checked": False,
+        "players_to_update": {},
+        "decks_to_update": {}
     }

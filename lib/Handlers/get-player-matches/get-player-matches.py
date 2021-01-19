@@ -49,6 +49,7 @@ def lambda_handler(event, context):
     header = {"X-Riot-Token": secret}
     
     player_to_process = event["Payload"]["players"][0]
+    event["Payload"]["current_player"] = player_to_process
 
     region = player_to_process['region']
     player_uuid = player_to_process['player_uuid']
@@ -60,11 +61,27 @@ def lambda_handler(event, context):
     match_result = {}
 
     match_result['status_code'] = matches.status_code
-    if matches.status_code == 429:
-        match_result['retry_after'] = matches.headers['Retry-After']
-    match_result['Data'] = matches.json()
 
-    event["Payload"]["match_result"] = match_result
-    event["Payload"]["current_player"] = player_to_process
+    if matches.status_code == 200:
+        match_result['Data'] = matches.json()
+        event["Payload"]["match_result"] = match_result
+        match_cache = event["Payload"]["current_player"]['match_cache']
+        matches_to_check = []
+
+        for match in matches:
+            if match not in match_cache:
+                matches_to_check.append(match)
+
+        event["Payload"]["current_player"]["match_cache"] = matches
+        event["Payload"]["current_player"]["matches_to_check"] = matches_to_check
+
+        if len(matches_to_check) == 0:
+            event["Payload"]["all_matches_checked"] = True
+        else:
+            event["Payload"]["all_matches_checked"] = False
+
+    elif matches.status_code == 429:
+        match_result['retry_after'] = matches.headers['Retry-After']
+
 
     return event["Payload"]

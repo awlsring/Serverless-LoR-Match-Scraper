@@ -25,6 +25,8 @@ This state machine is the main "brain" of this project. This state machine conta
 An EventBridge Rule is created to schedule execution of the state machine. Currently in this project it is set to execute every 30 minutes. 
 
 ### DynamoDB Tables:
+ ***Out of date, updating when refactor is done
+
 Two DynamoDB Tables are used, LoR-Player-Table and LoR-Match-Table. 
 * LoR-Player-Table is used to store all players the system will track. Currently players must be manually entered. Player entries lust have the following entries to run properly:
     * player_uuid (S): The players uuid assigned by riot. (Primary Key)
@@ -50,7 +52,7 @@ Two DynamoDB Tables are used, LoR-Player-Table and LoR-Match-Table.
     * loser (S): Uuid of losing player.
 
 ### S3 Bucket & Bucket Deployment
-An S3 bucket is used to host the wesbsite. The build for the react projet is targeted by the bucket deployment is sent to the bucket eveytime `cdk deploy` targotting the resource stack is run. [Te webpage this creates can be accessed here.](https://lor-match-tracker-react-bucket.s3-us-west-2.amazonaws.com/index.html)
+An S3 bucket is used to host the wesbsite. The build for the react projet is targeted by the bucket deployment is sent to the bucket eveytime `cdk deploy` targotting the resource stack is run. [The webpage this creates can be accessed here.](https://lor-match-tracker-react-bucket.s3-us-west-2.amazonaws.com/index.html)
 
 #### CDK Commands
 *  `npm run build` compile typescript to js
