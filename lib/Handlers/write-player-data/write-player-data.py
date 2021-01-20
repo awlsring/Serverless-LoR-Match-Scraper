@@ -7,10 +7,12 @@ def lambda_handler(event, context):
     dynamo = boto3.resource('dynamodb')
     player_table = dynamo.Table('LoR-Player-Info-Table')
     player_deck_table = dynamo.Table('LoR-Player-Deck-Table')
+    player_match_table = dynamo.Table('LoR-Player-Matches-Table')
 
     current_player = event["Payload"]['current_player']
     current_player_puuid = current_player["player_uuid"]
     player_deck_data = event["Payload"]["players_to_update"][current_player_puuid]
+    match_cache = current_player["match_cache"]
 
     # Update Player Entry
     player_table.update_item(
@@ -45,6 +47,24 @@ def lambda_handler(event, context):
         ExpressionAttributeValues=expression_attribute_values,
     )
 
+    previous_match_info = player_match_table.get_item(
+        Key = {
+            'player_uuid': current_player['player_uuid']
+        }
+    )
+
+    match_set = generate_match_set(match_cache, previous_match_info.get('Items', {}))
+
+    player_match_table.update_item(
+        Key = {
+            'player_uuid': current_player['player_uuid']
+        },
+        UpdateExpression='SET matches=:m',
+        ExpressionAttributeValues={
+            ':m': match_set
+        },
+    )
+
     for player in event['Payload']['players']:
         if player["player_uuid"] == current_player["player_uuid"]:
             event['Payload']['players'].remove(player)
@@ -56,6 +76,15 @@ def lambda_handler(event, context):
         event['Payload']["all_players_checked"] = True
 
     return event["Payload"]
+
+def generate_match_set(match_cache, dynamo_data):
+    if dynamo_data == {}:
+        dynamo_data = {
+            "matches": set()
+        }    
+    match_set = set(match_cache).union(dynamo_data.get('matches', set()))
+
+    return match_set
 
 def generate_dynamo_update_params(deck_data, dynamo_data):
     update_expression = 'SET '

@@ -78,10 +78,10 @@ def lambda_handler(event, context):
             region = "europe"
 
         dynamo = boto3.resource('dynamodb')
-        player_table = dynamo.Table('LoR-Player-Table')
+        player_info_table = dynamo.Table('LoR-Player-Info-Table')
 
         try:
-            player_table.put_item(
+            player_info_table.put_item(
                 Item = {
                 'player_uuid': player_uuid,
                 'region': region,
@@ -90,6 +90,32 @@ def lambda_handler(event, context):
                 'losses': 0,
                 'player_name': player_name,
                 'player_tag': player_tag,
+                },
+                ConditionExpression = 'attribute_not_exists(player_uuid)'
+            )
+        except ClientError:
+            return "Player already in database"
+
+        player_deck_table = dynamo.Table('LoR-Player-Decks-Table')
+
+        try:
+            player_deck_table.put_item(
+                Item = {
+                'player_uuid': player_uuid,
+                },
+                ConditionExpression = 'attribute_not_exists(player_uuid)'
+            )
+        except ClientError:
+            return "Player already in database"
+        else:
+            return "Player found and added to the database."
+
+        player_matches_table = dynamo.Table('LoR-Player-Matches-Table')
+
+        try:
+            player_matches_table.put_item(
+                Item = {
+                'player_uuid': player_uuid,
                 },
                 ConditionExpression = 'attribute_not_exists(player_uuid)'
             )

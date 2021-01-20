@@ -49,7 +49,7 @@ export class DynamoStack extends Stack {
     // Season Metadata Table
     const metadata = new Table(this, "LoR-Season-Metadata-Table", {
       partitionKey: { name: 'status', type: AttributeType.STRING },
-      tableName: "LoR-Player-Season-Metadata-Table",
+      tableName: "LoR-Season-Metadata-Table",
     });
 
     // Match Table
