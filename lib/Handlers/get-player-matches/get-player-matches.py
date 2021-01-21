@@ -68,11 +68,11 @@ def lambda_handler(event, context):
         match_cache = event["Payload"]["current_player"]['match_cache']
         matches_to_check = []
 
-        for match in matches:
+        for match in match_result['Data']:
             if match not in match_cache:
                 matches_to_check.append(match)
 
-        event["Payload"]["current_player"]["match_cache"] = matches
+        event["Payload"]["current_player"]["match_cache"] = matches.json()
         event["Payload"]["current_player"]["matches_to_check"] = matches_to_check
 
         if len(matches_to_check) == 0:
@@ -82,6 +82,5 @@ def lambda_handler(event, context):
 
     elif matches.status_code == 429:
         match_result['retry_after'] = matches.headers['Retry-After']
-
 
     return event["Payload"]

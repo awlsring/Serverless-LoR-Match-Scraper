@@ -59,11 +59,12 @@ def lambda_handler(event, context):
     match = requests.get(endpoint, headers=header)
 
     current_match = {}
+    current_player = event["Payload"]['current_player']
     
     current_match['status_code'] = match.status_code
+    current_match['match_id'] = match_id
     if match.status_code == 200:
-        current_player = event["Payload"]['current_player']
-        match_id = write_match(match.json(), event, current_player)
+        write_match(match.json(), event, current_player)
     
         # Remove match from matches_to_check
         current_player["matches_to_check"].remove(match_id)
@@ -72,10 +73,12 @@ def lambda_handler(event, context):
         if len(current_player["matches_to_check"]) == 0:
             event["Payload"]["all_matches_checked"] = True
 
-        return event["Payload"]
     elif match.status_code == 429:
         current_match['retry_after'] = match.headers['Retry-After']
-        return event["Payload"]
+
+    current_player["current_match"] = current_match
+    
+    return event["Payload"]
 
 def write_match(match, event, current_player):
     '''
@@ -89,8 +92,14 @@ def write_match(match, event, current_player):
     match_type = match["info"]["game_type"]
     match_turns = match["info"]["total_turn_count"]
 
-    players_to_update = event["Payload"]["players_to_update"]
+    player_to_update = event["Payload"]["players_to_update"]
+    if not player_to_update.get(current_player["player_uuid"], False):
+        player_to_update[current_player["player_uuid"]] = {}
+    player_to_update = player_to_update[current_player["player_uuid"]]
     decks_to_update = event["Payload"]["decks_to_update"]
+
+    handle_list_to_set(player_to_update)
+    handle_list_to_set(decks_to_update)
 
     match_date = format_time(match["info"]["game_start_time_utc"])
 
@@ -118,11 +127,14 @@ def write_match(match, event, current_player):
             result = True
         else:
             result = False
+
+        if player1["uuid"] == current_player["player_uuid"]:
+            add_player_to_update_dict(player_to_update, player1['legends'], player1['deckcode'], player2['legends'], result)
+        else:
+            add_player_to_update_dict(player_to_update, player2['legends'], player2['deckcode'], player1['legends'], (not result))
         
-        add_player_to_update_dict(players_to_update, player1['uuid'], player1['legends'], player1['deckcode'], player2['legends'], result)
-        # add_player_to_update_dict(players_to_update, player2['uuid'], player2['legends'], player2['deckcode'], player1['legends'], (not result))
-        decks_to_update(decks_to_update, player1['legends'], player1['deckcode'], player2['legends'], result)
-        decks_to_update(decks_to_update, player2['legends'], player2['deckcode'], player1['legends'], (not result))
+        add_deck_to_update_dict(decks_to_update, player1['legends'], player1['deckcode'], player2['legends'], result)
+        add_deck_to_update_dict(decks_to_update, player2['legends'], player2['deckcode'], player1['legends'], (not result))
 
         try:
             match_table.put_item(
@@ -148,7 +160,16 @@ def write_match(match, event, current_player):
         else:
             current_player['losses'] = current_player['losses'] + 1
 
-    return match_id
+        handle_set_to_list(player_to_update)
+        handle_set_to_list(decks_to_update)
+
+def handle_list_to_set(conversion_dict):
+    for legend, key in conversion_dict.items():
+        key["variants"] = set(key["variants"])
+
+def handle_set_to_list(conversion_dict):
+    for legend, key in conversion_dict.items():
+        key["variants"] = list(key["variants"])
 
 def form_legend_string(legends):
     legend_string = ""
@@ -177,9 +198,12 @@ def add_deck_to_update_dict(decks_to_update, legends, deckcode, opp_legends, res
         decks_to_update[legends]['variants'].add(deckcode)
     else:
         decks_to_update[legends] = {
-            "variants": set(deckcode)
+            "variants": {deckcode}
         }
     
+    if 'match_ups' not in decks_to_update[legends]:
+        decks_to_update[legends]['match_ups'] = {}
+
     if opp_legends in decks_to_update[legends]['match_ups']:
         if result:
             decks_to_update[legends]['match_ups'][opp_legends]['wins'] += 1
@@ -196,37 +220,24 @@ def add_deck_to_update_dict(decks_to_update, legends, deckcode, opp_legends, res
         }
         if result:
             decks_to_update[legends]['match_ups'][opp_legends]['wins'] += 1
-            decks_to_update[legends]["wins"] = decks_to_update[legends]["wins"] + 1
+            previous_value = decks_to_update[legends].get('wins', 0)
+            decks_to_update[legends]['wins'] = 1 + previous_value
         else:
             decks_to_update[legends]['match_ups'][opp_legends]['losses'] += 1
-            decks_to_update[legends]["losses"] = decks_to_update[legends]["losses"] + 1
+            previous_value = decks_to_update[legends].get('losses', 0)
+            decks_to_update[legends]['losses'] = 1 + previous_value
 
-def add_player_to_update_dict(players_to_update, puuid, legends, deckcode, opp_legends, result):
-    if result:
-        match_result = 'wins'
-    else:
-        match_result = 'losses'
+    print(decks_to_update)
 
-    if puuid in players_to_update:
-        if legends in players_to_update[puuid]:
-            players_to_update[puuid][legends]['variants'].add(deckcode)
-        else:
-            players_to_update[puuid][legends] = {
-                "variants": set(deckcode)
-            }
+def add_player_to_update_dict(player_to_update, legends, deckcode, opp_legends, result):
+    if legends in player_to_update:
+        player_to_update[legends]['variants'].add(deckcode)
     else:
-        players_to_update[puuid] = {
-            legends: {
-                "variants": set(deckcode)
-            }
+        player_to_update[legends] = {
+            "variants": { deckcode }
         }
-    
-    if players_to_update[puuid][legends][match_result] in players_to_update[puuid][legends]:
-        players_to_update[puuid][legends][match_result] += 1
-    else:
-        players_to_update[puuid][legends][match_result] = 1
 
-    add_deck_to_update_dict(players_to_update[puuid], legends, deckcode, opp_legends, result)
+    add_deck_to_update_dict(player_to_update, legends, deckcode, opp_legends, result)
 
 def format_time(date_riot):
     date_time = date_riot.split("T")

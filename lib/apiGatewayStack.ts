@@ -28,7 +28,7 @@ export class ApiGatewayStack extends Stack {
         }))
 
         addPlayerFunction.addToRolePolicy(new PolicyStatement( {
-            resources: [ <string>tables.get('Players') ],
+            resources: [ <string>tables.get('Player-Info'), <string>tables.get('Player-Decks'), <string>tables.get('Player-Matches') ],
             actions: [ 'dynamodb:PutItem' ]
         }))
 
@@ -47,7 +47,7 @@ export class ApiGatewayStack extends Stack {
         })
 
         getPlayerEntriesFunction.addToRolePolicy(new PolicyStatement( {
-            resources: [ <string>tables.get('Players') ],
+            resources: [ <string>tables.get('Player-Info') ],
             actions: [ 'dynamodb:Scan' ]
         }))
 

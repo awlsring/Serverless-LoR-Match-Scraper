@@ -1,4 +1,5 @@
 import boto3
+import time
 
 def lambda_handler(event, context):
     '''
@@ -14,10 +15,13 @@ def lambda_handler(event, context):
     player_deck_data = event["Payload"]["players_to_update"][current_player_puuid]
     match_cache = current_player["match_cache"]
 
+    seconds = round(time.time())
+
     # Update Player Entry
     player_table.update_item(
         Key = {
-            'player_uuid': current_player['player_uuid'],
+            'player_uuid': current_player_puuid,
+            "last_scanned": seconds
         },
         UpdateExpression='SET losses=:l, wins=:w, match_cache=:m',
         ExpressionAttributeValues={

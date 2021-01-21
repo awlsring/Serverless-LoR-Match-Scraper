@@ -58,12 +58,12 @@ export class DynamoStack extends Stack {
       tableName: "LoR-Matches-Table",
     });
 
-    this.dynamoTables.set("Player-Info", lorMatchesTable.tableArn)
-    this.dynamoTables.set("Player-Decks", lorPlayersTable.tableArn)
-    this.dynamoTables.set("Player-Matches", lorPlayersTable.tableArn)
-    this.dynamoTables.set("Decks", lorPlayersTable.tableArn)
-    this.dynamoTables.set("Metadata", lorPlayersTable.tableArn)
-    this.dynamoTables.set("Matches", lorPlayersTable.tableArn)
+    this.dynamoTables.set("Player-Info", playerInfo.tableArn)
+    this.dynamoTables.set("Player-Decks", playerDecks.tableArn)
+    this.dynamoTables.set("Player-Matches", playerMatches.tableArn)
+    this.dynamoTables.set("Decks", decks.tableArn)
+    this.dynamoTables.set("Metadata", metadata.tableArn)
+    this.dynamoTables.set("Matches", matches.tableArn)
 
   }
 }

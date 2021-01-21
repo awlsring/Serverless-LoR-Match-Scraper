@@ -139,7 +139,7 @@ export class StepFunctionStack extends Stack {
 
     // Pass dynamo arn to this section
     writePlayerDataLambda.addToRolePolicy(new PolicyStatement( {
-      resources: [ <string>tables.get('Player-Decks'), <string>tables.get('Player-Info') ],
+      resources: [ <string>tables.get('Player-Decks'), <string>tables.get('Player-Info'), <string>tables.get('Player-Matches') ],
       actions: [ 'dynamodb:UpdateItem', 'dynamodb:GetItem' ]
     }))
 

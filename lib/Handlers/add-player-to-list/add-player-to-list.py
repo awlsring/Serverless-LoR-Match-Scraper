@@ -84,6 +84,7 @@ def lambda_handler(event, context):
             player_info_table.put_item(
                 Item = {
                 'player_uuid': player_uuid,
+                'last_scanned': 0,
                 'region': region,
                 'match_cache': [],
                 'wins': 0,
@@ -107,8 +108,6 @@ def lambda_handler(event, context):
             )
         except ClientError:
             return "Player already in database"
-        else:
-            return "Player found and added to the database."
 
         player_matches_table = dynamo.Table('LoR-Player-Matches-Table')
 
