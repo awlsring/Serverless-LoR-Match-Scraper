@@ -1,14 +1,16 @@
 import boto3
 
 def prep_data_for_put(deck, deck_values, dynamo_data):
-    variants = deck_values['variants'].union(dynamo_data['variants'])
     match_ups_combined = {}
     for match_up, match_up_results in deck_values['match_ups'].items():
-        dynamo_data.get("match_ups", {})
-        dynamo_deck = dynamo_data["match_ups"].get(deck, False)
-        if dynamo_deck:
-            dynamo_wins = dynamo_deck["wins"]
-            dynamo_losses = dynamo_deck["losses"]
+        if dynamo_data.get("match_ups", False):
+            dynamo_deck = dynamo_data["match_ups"].get(deck, False)
+            if dynamo_deck:
+                dynamo_wins = dynamo_deck["wins"]
+                dynamo_losses = dynamo_deck["losses"]
+            else:
+                dynamo_wins = 0
+                dynamo_losses = 0
         else:
             dynamo_wins = 0
             dynamo_losses = 0
@@ -47,9 +49,9 @@ def lambda_handler(event, context):
             wins_dynamo = previous_deck_info['Items'][deck]['wins']
             losses_dynamo = previous_deck_info['Items'][deck]['losses']
 
-        variants = deck_values['variants'].union(codes_dynamo)
-        wins = wins_dynamo + deck_values['wins']
-        losses = losses_dynamo + deck_values['losses']
+        variants = set(deck_values.get('variants', [])).union(codes_dynamo)
+        wins = wins_dynamo + deck_values.get('wins', 0)
+        losses = losses_dynamo + deck_values.get('losses', 0)
         
         deck_table.put_item(
             Item = {
@@ -62,7 +64,3 @@ def lambda_handler(event, context):
         )
 
     return
-
-
-
-

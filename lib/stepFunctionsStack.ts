@@ -66,7 +66,7 @@ export class StepFunctionStack extends Stack {
 
     const getMatchLambda = new Function(this, 'Get-Match-Function', {
       runtime: Runtime.PYTHON_3_8,
-      layers: [ <LayerVersion>layers.get('requests') ],
+      layers: [ <LayerVersion>layers.get('requests'), <LayerVersion>layers.get('lor-deckcodes') ],
       handler: 'get-match.lambda_handler',
       code: Code.fromAsset('lib/handlers/get-match'),
       memorySize: 128,

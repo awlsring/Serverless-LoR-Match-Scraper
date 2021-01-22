@@ -5,6 +5,7 @@ from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 import base64
 import time
+import datetime
 from lor_deckcodes import LoRDeck, CardCodeAndCount
 
 def get_secret():
@@ -74,7 +75,8 @@ def lambda_handler(event, context):
             event["Payload"]["all_matches_checked"] = True
 
     elif match.status_code == 429:
-        current_match['retry_after'] = match.headers['Retry-After']
+        back_off_till = (round(time.time()) + int(match.headers['Retry-After']))
+        current_match['retry_after'] = datetime.datetime.fromtimestamp(back_off_till).isoformat()
 
     current_player["current_match"] = current_match
     
@@ -172,9 +174,9 @@ def handle_set_to_list(conversion_dict):
         key["variants"] = list(key["variants"])
 
 def form_legend_string(legends):
-    legend_string = ""
+    legend_string = "deck"
     for legend in legends:
-        legend_string = f"{legend_string}-{legend}"
+        legend_string = f"{legend_string}_{legend}"
 
     return legend_string
 
@@ -207,17 +209,18 @@ def add_deck_to_update_dict(decks_to_update, legends, deckcode, opp_legends, res
     if opp_legends in decks_to_update[legends]['match_ups']:
         if result:
             decks_to_update[legends]['match_ups'][opp_legends]['wins'] += 1
-            decks_to_update[legends]["wins"] = decks_to_update[legends]["wins"] + 1
+            previous_value = decks_to_update[legends].get('wins', 0)
+            decks_to_update[legends]["wins"] = 1 + previous_value
         else:
             decks_to_update[legends]['match_ups'][opp_legends]['losses'] += 1
-            decks_to_update[legends]["losses"] = decks_to_update[legends]["losses"] + 1
+            previous_value = decks_to_update[legends].get('losses', 0)
+            decks_to_update[legends]["losses"] = 1 + previous_value
     else:
-        decks_to_update[legends]['match_ups'] = {
-            opp_legends: {
-                'wins': 0,
-                'losses': 0
-            }
+        decks_to_update[legends]['match_ups'][opp_legends] = {
+            'wins': 0,
+            'losses': 0
         }
+        
         if result:
             decks_to_update[legends]['match_ups'][opp_legends]['wins'] += 1
             previous_value = decks_to_update[legends].get('wins', 0)
@@ -226,8 +229,6 @@ def add_deck_to_update_dict(decks_to_update, legends, deckcode, opp_legends, res
             decks_to_update[legends]['match_ups'][opp_legends]['losses'] += 1
             previous_value = decks_to_update[legends].get('losses', 0)
             decks_to_update[legends]['losses'] = 1 + previous_value
-
-    print(decks_to_update)
 
 def add_player_to_update_dict(player_to_update, legends, deckcode, opp_legends, result):
     if legends in player_to_update:

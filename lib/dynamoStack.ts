@@ -26,7 +26,6 @@ export class DynamoStack extends Stack {
     // Player Tables    
     const playerInfo = new Table(this, "LoR-Player-Info-Table", {
       partitionKey: { name: 'player_uuid', type: AttributeType.STRING },
-      sortKey: {name: 'last_scanned', type: AttributeType.NUMBER},
       tableName: "LoR-Player-Info-Table",
     });
 

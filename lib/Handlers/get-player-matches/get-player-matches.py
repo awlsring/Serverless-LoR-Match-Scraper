@@ -2,6 +2,8 @@ import requests
 import json
 import boto3
 import base64
+import time
+import datetime
 from botocore.exceptions import ClientError
 
 def get_secret():
@@ -61,10 +63,10 @@ def lambda_handler(event, context):
     match_result = {}
 
     match_result['status_code'] = matches.status_code
+    event["Payload"]["match_result"] = match_result
 
     if matches.status_code == 200:
         match_result['Data'] = matches.json()
-        event["Payload"]["match_result"] = match_result
         match_cache = event["Payload"]["current_player"]['match_cache']
         matches_to_check = []
 
@@ -81,6 +83,7 @@ def lambda_handler(event, context):
             event["Payload"]["all_matches_checked"] = False
 
     elif matches.status_code == 429:
-        match_result['retry_after'] = matches.headers['Retry-After']
+        back_off_till = (round(time.time()) + int(match.headers['Retry-After']))
+        match_result['retry_after'] = datetime.datetime.fromtimestamp(back_off_till).isoformat()
 
     return event["Payload"]
