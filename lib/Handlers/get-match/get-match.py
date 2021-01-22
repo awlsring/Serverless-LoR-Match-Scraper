@@ -175,6 +175,8 @@ def handle_set_to_list(conversion_dict):
 
 def form_legend_string(legends):
     legend_string = "deck"
+    legends = list(legends)
+    legends.sort()
     for legend in legends:
         legend_string = f"{legend_string}_{legend}"
 
