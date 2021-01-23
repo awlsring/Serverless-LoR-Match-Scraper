@@ -9,7 +9,7 @@ export class ApiGatewayStack extends Stack {
 
         const addPlayerFunction = new Function(this, 'LoR-Add-Player', {
             runtime: Runtime.PYTHON_3_8,
-            layers: [ <LayerVersion>layers.get('requests') ],
+            layers: [ <LayerVersion>layers.get('requests'), <LayerVersion>layers.get('lor-utilities') ],
             handler: 'add-player-to-list.lambda_handler',
             code: Code.fromAsset('lib/handlers/add-player-to-list'),
             memorySize: 128,

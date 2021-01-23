@@ -26,8 +26,16 @@ export class ResourcesStack extends Stack {
       layerVersionName: "LoR-Deck-Codes"
     })
 
+    const lorUtilitiesLayer = new LayerVersion(this, "LoR-Utilities-Layer", {
+      code: Code.fromAsset('lib/handlers/lib/lor-utilities/lor-utilities.zip'),
+      compatibleRuntimes: [ Runtime.PYTHON_3_8 ] ,
+      description: "Lambda Layer for LoR Utility Functions",
+      layerVersionName: "LoR-Utilities"
+    })
+
     this.lambdaLayers.set("requests", requestsLayer)
     this.lambdaLayers.set("lor-deckcodes", lorDeckCodesLayer)
+    this.lambdaLayers.set("lor-utilities", lorUtilitiesLayer)
 
     // Bucket
     const frontEndBucket = new Bucket(this, 'LoR-React-Bucket', {
